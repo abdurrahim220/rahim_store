@@ -11,6 +11,7 @@ app.use(cors())
 
 app.use('/api', require('./routes/categoryRoutes'));
 app.use('/api', require('./routes/productsRoutes'));
+app.use('/api', require('./routes/stripe'));
 
 app.get("/api",(req,res)=>{
     res.send("Server is running");
