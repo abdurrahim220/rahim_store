@@ -2,29 +2,22 @@ const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema(
   {
-    orderId: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    currency: {
-      type: String,
-      required: true,
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "failed"],
-      default: "pending",
-    },
+    userId: { type: String, required: true },
+    customerId: { type: String},
+    paymentIntentId:{type:String},
     products: [
       {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Products", // Assuming you have a Product model
+        id: {
+          type: String,
+          required: true,
+        },
+        title: {
+          type: String,
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
         },
         price: {
           type: Number,
@@ -32,6 +25,11 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
+    subtotal: { type: Number, required: true },
+    total: { type: Number, required: true },
+    shipping: { type: Object, required: true },
+    delivery_status: { type: String, default: "pending" },
+    payment_status: { type: String, required: true },
   },
   { timestamps: true }
 );
