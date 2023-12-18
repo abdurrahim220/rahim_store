@@ -51,14 +51,13 @@ const loginUser = async (req, res) => {
 // Controller for getting user profile with JWT verification
 const getUserProfile = async (req, res) => {
   try {
-    // The user object is available in the request due to the JWT verification middleware
-    const { userId, email, role } = req.user;
+    // Retrieve all allUsers from the database
+    const allUsers = await User.find();
 
-    // You can use the user information as needed
-    res.status(200).json({ userId, email, role });
+    return res.status(200).json( allUsers );
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    console.error("Error getting allUsers:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 

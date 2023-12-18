@@ -8,8 +8,9 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const router = express.Router();
 
 router.post("/create-checkout-session", async (req, res) => {
-  const { cartItems, userId } = req.body;
+  const { cartItems, useRId } = req.body;
   // console.log("cart data:", cartItems);
+  // console.log("id",useRId)
 
   // Create a summary of cart items
   const cartSummary = cartItems.map((item) => {
@@ -23,12 +24,12 @@ router.post("/create-checkout-session", async (req, res) => {
 
   const customer = await stripe.customers.create({
     metadata: {
-      userId: req.body.userId,
-      cart: JSON.stringify(cartSummary),
+      userId: req.body.useRId,
+      // cart: JSON.stringify(cartSummary),
     },
   });
 
-  // console.log("Customer data:", customer);
+  console.log("Customer data:", customer);
 
   const line_items = cartItems.map((item) => {
     return {
@@ -107,13 +108,13 @@ router.post("/create-checkout-session", async (req, res) => {
   res.send({ url: session.url });
 });
 
-const createOrder = async (customer, data) => {
-  const Items = JSON.parse(customer.metadata.cart);
+const createOrder = async (customer, data,lineItems) => {
+  // const Items = JSON.parse(customer.metadata.cart);
   const newOrder = new Order({
     userId: customer.metadata.userId,
     customerId: data.customer,
     paymentIntentId: data.payment_intent,
-    products: Items,
+    products: lineItems.data,
     subtotal: data.amount_subtotal,
     total: data.amount_total,
     shipping: data.customer_details,
@@ -123,7 +124,7 @@ const createOrder = async (customer, data) => {
   try {
     const saveOrder = await newOrder.save();
 
-    // console.log("Processed Oder:", saveOrder);
+    console.log("Processed Oder:", saveOrder);
   } catch (error) {
     console.log(error);
   }
@@ -132,7 +133,7 @@ const createOrder = async (customer, data) => {
 // web hook
 
 // This is your Stripe CLI webhook secret for testing your endpoint locally.
-
+let webhookSecret;
 //  endpointSecret =
 //   "whsec_2f16b64ec515564224e3e619acfb8e33014a53c48050983e75cebfa315960c22";
 router.post(
@@ -143,7 +144,7 @@ router.post(
     let eventType;
 
     // Check if webhook signing is configured.
-    let webhookSecret;
+
     //webhookSecret = process.env.STRIPE_WEB_HOOK;
 
     if (webhookSecret) {
@@ -175,14 +176,15 @@ router.post(
     if (eventType === "checkout.session.completed") {
       stripe.customers
         .retrieve(data.customer)
-        .then(async (customer) => {
-          try {
-            // CREATE ORDER
-            createOrder(customer, data);
-          } catch (err) {
-            console.log(typeof createOrder);
-            console.log(err);
-          }
+        .then((customer) => {
+          stripe.checkout.sessions.listLineItems(
+            data.id,
+            {},
+            function (err, lineItems) {
+              console.log("Line items", lineItems);
+              createOrder(customer, data,lineItems);
+            }
+          );
         })
         .catch((err) => console.log(err.message));
     }

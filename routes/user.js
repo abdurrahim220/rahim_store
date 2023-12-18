@@ -14,6 +14,6 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 
 // Route to get user profile with JWT verification
-router.get('/profile', verifyToken, getUserProfile);
+router.get('/allUsers', getUserProfile);
 
 module.exports = router;
