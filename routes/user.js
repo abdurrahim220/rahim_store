@@ -3,7 +3,8 @@ const router = express.Router();
 const {
   registerUser,
   loginUser,
-  getUserProfile
+  getUserProfile,
+  countUser
 } = require('../controllers/userController');
 const verifyToken = require('../middlewares/verifyToken'); // Your JWT verification middleware
 
@@ -15,5 +16,6 @@ router.post('/login', loginUser);
 
 // Route to get user profile with JWT verification
 router.get('/allUsers', getUserProfile);
+router.get('/stats', countUser);
 
 module.exports = router;

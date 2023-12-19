@@ -13,6 +13,7 @@ app.use('/api', require('./routes/categoryRoutes'));
 app.use('/api', require('./routes/productsRoutes'));
 app.use('/api', require('./routes/stripe'));
 app.use('/api', require('./routes/user'));
+app.use('/api', require('./routes/order'));
 
 app.get("/api",(req,res)=>{
     res.send("Server is running");
