@@ -29,12 +29,25 @@ const createOrder = async (req, res) => {
 
 // Controller for getting all orders
 const getAllOrders = async (req, res) => {
+  const query = req.query.new;
   try {
-    const orders = await Order.find();
-    return res.status(200).json({ orders });
+    const orders = query
+      ? await Order.find().sort({ _id: -1 }).limit(4)
+      : await Order.find().sort({ _id: -1 });
+
+    return res.status(200).json(orders);
   } catch (error) {
-    console.error("Error getting orders:", error);
     return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const getAllOrderAccordingToDate = async (req, res) => {
+  try {
+    const latestOrders = await Order.find().sort({ createdAt: -1 });
+    res.json(latestOrders);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -127,5 +140,5 @@ module.exports = {
   getAllOrders,
   countOrder,
   countTotalOrderIncome,
-  countTotalOrderWeakSale,
+  countTotalOrderWeakSale,getAllOrderAccordingToDate
 };
