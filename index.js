@@ -1,10 +1,13 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const app = express();
 const cors = require('cors');
 const connectDB = require('./db/connectDB');
 require('dotenv').config()
 
 const port = 5000;
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json());
 app.use(cors())
 

@@ -1,9 +1,11 @@
 const Products = require("../models/Products");
 
+const cloudinary = require("../utils/cloudinary");
+
 // Controller for handling the creation of a new product
 const createProduct = async (req, res) => {
+  const { title, price, desc, image, category } = req.body;
   try {
-    const { title, price, desc, image, category } = req.body;
     const newProduct = new Products({
       title,
       price,
@@ -14,6 +16,32 @@ const createProduct = async (req, res) => {
     const savedProduct = await newProduct.save();
 
     res.status(201).json(savedProduct);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const createNewProduct = async (req, res) => {
+  try {
+    const { title, price, desc, image, category } = req.body;
+    if (image) {
+      const uploadRes = await cloudinary.uploader.upload(image, {
+        upload_preset: "onlineShop",
+      });
+      if (uploadRes) {
+        const newProduct = new Products({
+          title,
+          price,
+          desc,
+          image: uploadRes,
+          category,
+        });
+        const savedProduct = await newProduct.save();
+
+        res.status(200).json(savedProduct);
+      }
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -97,4 +125,5 @@ module.exports = {
   createProduct,
   updateProductById,
   getAllProducts,
+  createNewProduct,
 };
