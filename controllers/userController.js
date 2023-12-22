@@ -1,7 +1,6 @@
 const User = require("../models/User"); // Adjust the path accordingly
-const jwt = require("jsonwebtoken");
+
 var moment = require("moment");
-const verifyToken = require("../middlewares/verifyToken"); // Your JWT verification middleware
 
 // Controller for user registration
 const registerUser = async (req, res) => {
@@ -76,19 +75,32 @@ const countUser = async (req, res) => {
         $match: { createdAt: { $gte: new Date(previousMonth) } },
       },
       {
-        $project:{
-          month:{$month:"$createdAt"}
-        }
-      },{
-        $group:{
-          _id:"$month",
-          total:{$sum:1}
-        }
-      }
+        $project: {
+          month: { $month: "$createdAt" },
+        },
+      },
+      {
+        $group: {
+          _id: "$month",
+          total: { $sum: 1 },
+        },
+      },
     ]);
-    res.status(200).json(users)
+    res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const deleteUser = await User.findByIdAndDelete(req.params.id);
+    if (!deleteUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json(deleteUser);
+  } catch (error) {
+    res.status(500).json(error);
   }
 };
 
@@ -97,4 +109,5 @@ module.exports = {
   loginUser,
   getUserProfile,
   countUser,
+  deleteUser
 };
