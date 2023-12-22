@@ -20,7 +20,7 @@ const getAllOrderAccordingToDate = async (req, res) => {
     const latestOrders = await Order.find().sort({ createdAt: -1 });
     res.json(latestOrders);
   } catch (error) {
-    console.error(error);
+    // console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

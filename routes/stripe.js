@@ -9,10 +9,9 @@ const router = express.Router();
 
 router.post("/create-checkout-session", async (req, res) => {
   const { cartItems, useRId } = req.body;
-  // console.log("cart data:", cartItems);
-  // console.log("id",useRId)
+  
 
-  // Create a summary of cart items
+ 
   const cartSummary = cartItems.map((item) => {
     return {
       id: item._id,
@@ -159,7 +158,7 @@ router.post(
           webhookSecret
         );
       } catch (err) {
-        console.log(`⚠️  Webhook signature verification failed:  ${err}`);
+        // console.log(`⚠️  Webhook signature verification failed:  ${err}`);
         return res.sendStatus(400);
       }
       // Extract the object from the event.
@@ -181,7 +180,7 @@ router.post(
             data.id,
             {},
             function (err, lineItems) {
-              console.log("Line items", lineItems);
+              // console.log("Line items", lineItems);
               createOrder(customer, data,lineItems);
             }
           );

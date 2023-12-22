@@ -23,25 +23,25 @@ const createNewProduct = async (req, res) => {
       }
     }
   } catch (error) {
-    console.error(error);
+    
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 const getAllProducts = async (req, res) => {
   try {
-    // Fetch all products from the database
+    
     const allProducts = await Products.find();
 
-    // Respond with the array of products
+    
     res.status(200).json(allProducts);
   } catch (error) {
-    // Handle any errors that occur during the process
-    console.error(error);
+    
+    
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-// Controller for retrieving a single product by ID
+
 const getProductById = async (req, res) => {
   try {
     const id = req.params.id;
@@ -54,12 +54,12 @@ const getProductById = async (req, res) => {
 
     res.status(200).json(product);
   } catch (error) {
-    console.error(error);
+    
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-// Controller for deleting a single product by ID
+
 
 const deleteProductById = async (req, res) => {
   try {
@@ -91,12 +91,12 @@ const deleteProductById = async (req, res) => {
 
     res.status(200).json(deletedProduct);
   } catch (error) {
-    console.error(error);
+    
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-// Controller for updating a single product by ID
+
 const updateProductById = async (req, res) => {
   try {
     const id = req.params.id;
@@ -135,7 +135,7 @@ const updateProductById = async (req, res) => {
 
     res.status(200).json(updatedProduct);
   } catch (error) {
-    console.error(error);
+    
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
