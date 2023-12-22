@@ -1,32 +1,6 @@
 const moment = require("moment");
 const Order = require("../models/Order");
 
-// Controller for creating a new order
-const createOrder = async (req, res) => {
-  try {
-    // Assuming request body contains order details
-    const { orderId, amount, currency, paymentStatus, products } = req.body;
-    console.log(orderId, amount, currency, paymentStatus, products);
-
-    const newOrder = new Order({
-      orderId,
-      amount,
-      currency,
-      paymentStatus,
-      products,
-    });
-
-    const savedOrder = await newOrder.save();
-
-    return res
-      .status(201)
-      .json({ message: "Order created successfully", order: savedOrder });
-  } catch (error) {
-    console.error("Error creating order:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
 // Controller for getting all orders
 const getAllOrders = async (req, res) => {
   const query = req.query.new;
@@ -135,8 +109,38 @@ const countTotalOrderWeakSale = async (req, res) => {
   }
 };
 
+
+const updateStatus = async(req,res)=>{
+  try {
+    const updateOrder = await Order.findByIdAndUpdate(req.params.id,{
+      $set:req.body,
+    },{
+      new:true
+    })
+    res.status(200).json(updateOrder)
+  } catch (error) {
+    res.status(500).send(err)
+  }
+}
+
+
+const singleOrder = async(req,res)=>{
+try {
+  const order = await Order.findById(req.params.id);
+  if (!order) {
+    return res.status(404).json({ error: "order not found" });
+  }
+
+  res.status(200).json(order);
+  
+} catch (error) {
+  res.status(500).send(error)
+}
+
+}
 module.exports = {
-  createOrder,
+  updateStatus,
+  singleOrder,
   getAllOrders,
   countOrder,
   countTotalOrderIncome,
