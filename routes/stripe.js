@@ -28,7 +28,7 @@ router.post("/create-checkout-session", async (req, res) => {
     },
   });
 
-  console.log("Customer data:", customer);
+  // console.log("Customer data:", customer);
 
   const line_items = cartItems.map((item) => {
     return {
@@ -123,7 +123,7 @@ const createOrder = async (customer, data,lineItems) => {
   try {
     const saveOrder = await newOrder.save();
 
-    console.log("Processed Oder:", saveOrder);
+    // console.log("Processed Oder:", saveOrder);
   } catch (error) {
     console.log(error);
   }
