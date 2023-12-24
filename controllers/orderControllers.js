@@ -109,40 +109,56 @@ const countTotalOrderWeakSale = async (req, res) => {
   }
 };
 
-
-const updateStatus = async(req,res)=>{
+const updateStatus = async (req, res) => {
   try {
-    const updateOrder = await Order.findByIdAndUpdate(req.params.id,{
-      $set:req.body,
-    },{
-      new:true
-    })
-    res.status(200).json(updateOrder)
+    const updateOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: req.body,
+      },
+      {
+        new: true,
+      }
+    );
+    res.status(200).json(updateOrder);
   } catch (error) {
-    res.status(500).send(err)
+    res.status(500).send(err);
   }
-}
+};
 
+const singleOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "order not found" });
+    }
 
-const singleOrder = async(req,res)=>{
-try {
-  const order = await Order.findById(req.params.id);
-  if (!order) {
-    return res.status(404).json({ error: "order not found" });
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).send(error);
   }
+};
 
-  res.status(200).json(order);
-  
-} catch (error) {
-  res.status(500).send(error)
-}
+const deleteOrder = async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "order not found" });
+    }
 
-}
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+};
+
 module.exports = {
   updateStatus,
   singleOrder,
   getAllOrders,
+  deleteOrder,
   countOrder,
   countTotalOrderIncome,
-  countTotalOrderWeakSale,getAllOrderAccordingToDate
+  countTotalOrderWeakSale,
+  getAllOrderAccordingToDate,
 };

@@ -9,10 +9,12 @@ const {
   countTotalOrderIncome,
   countTotalOrderWeakSale,
   getAllOrderAccordingToDate,
+  deleteOrder,
 } = require("../controllers/orderControllers");
 
 router.get("/orders", countOrder);
 router.put("/orders/:id", updateStatus);
+router.delete("/orders/:id", deleteOrder);
 router.get("/single/orders/:id", singleOrder);
 router.get("/orders/all", getAllOrders);
 router.get("/orders/income", countTotalOrderIncome);
