@@ -18,7 +18,7 @@ app.use('/api', require('./routes/stripe'));
 app.use('/api', require('./routes/user'));
 app.use('/api', require('./routes/order'));
 
-app.get("/api",(req,res)=>{
+app.get("/",(req,res)=>{
     res.send("Server is running");
 })
 
