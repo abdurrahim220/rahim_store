@@ -5,12 +5,12 @@ const cors = require("cors");
 const connectDB = require("./db/connectDB");
 const port = process.env.PORT || 5000;
 
-app.use(bodyParser.json({ limit: "10mb" }));
+// app.use(bodyParser.json({ limit: "10mb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
-// app.use(express.json());
 
 const corsOptions = {
-  origin: ["http://localhost:5000", "https://your-frontend-domain.com", "*"],
+  origin: ["http://localhost:5000"],
   methods: ["GET", "POST", "PUT", "DELETE",],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"], 
