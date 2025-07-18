@@ -17,6 +17,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: err.message || 'Something went wrong' });
+});
 
 app.use("/api", require("./routes/categoryRoutes"));
 app.use("/api", require("./routes/productsRoutes"));
