@@ -1,5 +1,4 @@
-const mongoose = require("mongoose");
-
+import mongoose from "mongoose";
 const CategorySchema = new mongoose.Schema(
   {
     name: {
@@ -10,8 +9,13 @@ const CategorySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    cloudinary_id: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Category", CategorySchema);
+const Category = mongoose.model("Category", CategorySchema);
+export default Category;

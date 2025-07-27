@@ -1,195 +1,165 @@
-const express = require("express");
-require("dotenv").config();
-const Stripe = require("stripe");
-const Order = require("../models/Order");
+import { Router } from "express";
+import Stripe from "stripe";
+import config from "../config/config";
+import Order from "../models/orderModel"; // Make sure to import your Order model
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const router = Router();
+const stripe = new Stripe(config.stripeSecretKey);
 
-const router = express.Router();
-
+// Create checkout session
 router.post("/create-checkout-session", async (req, res) => {
-  const { cartItems, useRId } = req.body;
-  
+  try {
+    const { cartItems, userId } = req.body; // Fixed typo (useRId -> userId)
 
- 
-  const cartSummary = cartItems.map((item) => {
-    return {
-      id: item._id,
-      title: item.title,
-      quantity: item.quantity,
-      price: item.price,
-    };
-  });
+    // Validate input
+    if (!cartItems || !Array.isArray(cartItems)) {
+      return res.status(400).json({ error: "Invalid cart items" });
+    }
 
-  const customer = await stripe.customers.create({
-    metadata: {
-      userId: req.body.useRId,
-      // cart: JSON.stringify(cartSummary),
-    },
-  });
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
 
-  // console.log("Customer data:", customer);
+    // Create customer in Stripe
+    const customer = await stripe.customers.create({
+      metadata: {
+        userId,
+        cart: JSON.stringify(
+          cartItems.map((item) => ({
+            id: item._id,
+            title: item.title,
+            quantity: item.quantity,
+            price: item.price,
+          }))
+        ),
+      },
+    });
 
-  const line_items = cartItems.map((item) => {
-    return {
+    // Prepare line items
+    const line_items = cartItems.map((item) => ({
       price_data: {
         currency: "usd",
         product_data: {
           name: item.title,
-          metadata: {
-            id: item._id,
-          },
+          metadata: { id: item._id },
         },
-        unit_amount: item.price * 100,
+        unit_amount: Math.round(item.price * 100), // Ensure proper rounding
       },
       quantity: item.quantity,
-    };
-  });
+    }));
 
-  // console.log("Line data", line_items[0].price_data.product_data);
-
-  const session = await stripe.checkout.sessions.create({
-    shipping_address_collection: {
-      allowed_countries: ["US", "CA"],
-    },
-    shipping_options: [
-      {
-        shipping_rate_data: {
-          type: "fixed_amount",
-          fixed_amount: {
-            amount: 0,
-            currency: "usd",
-          },
-          display_name: "Free shipping",
-          delivery_estimate: {
-            minimum: {
-              unit: "business_day",
-              value: 5,
-            },
-            maximum: {
-              unit: "business_day",
-              value: 7,
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      shipping_address_collection: { allowed_countries: ["US", "CA"] },
+      shipping_options: [
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: 0, currency: "usd" },
+            display_name: "Free shipping",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 5 },
+              maximum: { unit: "business_day", value: 7 },
             },
           },
         },
-      },
-      {
-        shipping_rate_data: {
-          type: "fixed_amount",
-          fixed_amount: {
-            amount: 1500,
-            currency: "usd",
-          },
-          display_name: "Next day air",
-          delivery_estimate: {
-            minimum: {
-              unit: "business_day",
-              value: 1,
-            },
-            maximum: {
-              unit: "business_day",
-              value: 1,
+        {
+          shipping_rate_data: {
+            type: "fixed_amount",
+            fixed_amount: { amount: 1500, currency: "usd" },
+            display_name: "Next day air",
+            delivery_estimate: {
+              minimum: { unit: "business_day", value: 1 },
+              maximum: { unit: "business_day", value: 1 },
             },
           },
         },
-      },
-    ],
-    phone_number_collection: {
-      enabled: true,
-    },
-    line_items,
-    customer: customer.id,
-    mode: "payment",
-    success_url: `${process.env.CLIENT_URL}/checkout-success`,
-    cancel_url: `${process.env.CLIENT_URL}/checkout-cart`,
-  });
+      ],
+      phone_number_collection: { enabled: true },
+      line_items,
+      customer: customer.id,
+      mode: "payment",
+      success_url: `${process.env.CLIENT_URL}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.CLIENT_URL}/cart`,
+    });
 
-  res.send({ url: session.url });
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Checkout error:", error);
+    res.status(500).json({ error: "Error creating checkout session" });
+  }
 });
 
-const createOrder = async (customer, data,lineItems) => {
-  // const Items = JSON.parse(customer.metadata.cart);
-  const newOrder = new Order({
-    userId: customer.metadata.userId,
-    customerId: data.customer,
-    paymentIntentId: data.payment_intent,
-    products: lineItems.data,
-    subtotal: data.amount_subtotal,
-    total: data.amount_total,
-    shipping: data.customer_details,
-    payment_status: data.payment_status,
-  });
-
-  try {
-    const saveOrder = await newOrder.save();
-
-    // console.log("Processed Oder:", saveOrder);
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-// web hook
-
-// This is your Stripe CLI webhook secret for testing your endpoint locally.
-let webhookSecret;
-//  endpointSecret =
-//   "whsec_2f16b64ec515564224e3e619acfb8e33014a53c48050983e75cebfa315960c22";
+// Webhook handler
 router.post(
   "/webhook",
-  express.json({ type: "application/json" }),
+  express.raw({ type: "application/json" }),
   async (req, res) => {
-    let data;
-    let eventType;
+    const sig = req.headers["stripe-signature"];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    // Check if webhook signing is configured.
+    let event;
 
-    //webhookSecret = process.env.STRIPE_WEB_HOOK;
-
-    if (webhookSecret) {
-      // Retrieve the event by verifying the signature using the raw body and secret.
-      let event;
-      let signature = req.headers["stripe-signature"];
-
-      try {
-        event = stripe.webhooks.constructEvent(
-          req.body,
-          signature,
-          webhookSecret
-        );
-      } catch (err) {
-        // console.log(`⚠️  Webhook signature verification failed:  ${err}`);
-        return res.sendStatus(400);
+    try {
+      if (!webhookSecret) {
+        throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
       }
-      // Extract the object from the event.
-      data = event.data.object;
-      eventType = event.type;
-    } else {
-      // Webhook signing is recommended, but if the secret is not configured in `config.js`,
-      // retrieve the event data directly from the request body.
-      data = req.body.data.object;
-      eventType = req.body.type;
+
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error(`Webhook error: ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     // Handle the checkout.session.completed event
-    if (eventType === "checkout.session.completed") {
-      stripe.customers
-        .retrieve(data.customer)
-        .then((customer) => {
-          stripe.checkout.sessions.listLineItems(
-            data.id,
-            {},
-            function (err, lineItems) {
-              // console.log("Line items", lineItems);
-              createOrder(customer, data,lineItems);
-            }
-          );
-        })
-        .catch((err) => console.log(err.message));
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+
+      try {
+        // Retrieve customer and line items
+        const customer = await stripe.customers.retrieve(session.customer);
+        const lineItems = await stripe.checkout.sessions.listLineItems(
+          session.id
+        );
+
+        // Create order in database
+        await createOrder(customer, session, lineItems);
+      } catch (err) {
+        console.error("Order processing error:", err);
+      }
     }
 
-    res.status(200).end();
+    res.json({ received: true });
   }
 );
 
-module.exports = router;
+// Order creation helper
+const createOrder = async (customer, session, lineItems) => {
+  try {
+    const cartItems = JSON.parse(customer.metadata.cart);
+
+    const order = new Order({
+      userId: customer.metadata.userId,
+      customerId: session.customer,
+      paymentIntentId: session.payment_intent,
+      products: lineItems.data.map((item) => ({
+        productId: item.price_data.product_data.metadata.id,
+        quantity: item.quantity,
+        price: item.price_data.unit_amount / 100,
+      })),
+      subtotal: session.amount_subtotal / 100,
+      total: session.amount_total / 100,
+      shipping: session.shipping_details || session.customer_details,
+      payment_status: session.payment_status,
+    });
+
+    await order.save();
+    console.log("Order created successfully:", order._id);
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+};
+
+export const stripeRouter = router;

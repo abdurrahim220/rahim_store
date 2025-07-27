@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose, { Schema } from "mongoose";
 
 const ProductsSchema = new mongoose.Schema(
   {
@@ -15,17 +15,25 @@ const ProductsSchema = new mongoose.Schema(
       required: true,
     },
     image: {
-      type: Object,
+      type: String,
       required: true,
     },
     category: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "Category",
       required: true,
+    },
+    cloudinary_id: {
+      type: String,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   { timestamps: true }
 );
 
-const Products = mongoose.model("Products", ProductsSchema);
+const Product = mongoose.model("Product", ProductsSchema);
 
-module.exports = Products;
+export default Product;

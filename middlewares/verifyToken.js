@@ -1,28 +1,30 @@
-const jwt = require('jsonwebtoken');
-// Your JWT secret should be stored in a secure config file
+import jwt from "jsonwebtoken";
+import config from "../config/config.js";
+import status from "http-status";
+import AppError from "../error/appError.js";
 
 const verifyToken = (req, res, next) => {
-  // Extract the token from the request headers
-  const token = req.header('Authorization');
-
-  // Check if the token is missing
+  let token = req.cookies.jwt;
+  // console.log(token);
   if (!token) {
-    return res.status(401).json({ message: 'Access denied. Token is missing.' });
+    return next(
+      new AppError(
+        "No valid token provided. Please log in.",
+        status.UNAUTHORIZED
+      )
+    );
   }
-
   try {
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-
-    // Attach the decoded user information to the request object for later use in controllers
+    const decoded = jwt.verify(token, config.accessTokenSecret);
     req.user = decoded;
-
-    // Continue to the next middleware or route handler
+    // console.log("decoded", decoded);
     next();
   } catch (error) {
     console.error(error);
-    return res.status(401).json({ message: 'Invalid token.' });
+    return next(
+      new AppError("Invalid token. Please log in again.", status.UNAUTHORIZED)
+    );
   }
 };
 
-module.exports = verifyToken;
+export default verifyToken;

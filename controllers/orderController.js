@@ -1,6 +1,6 @@
-const moment = require("moment");
-const Order = require("../models/Order");
-
+import Order from "../models/Order.js";
+import moment from "moment";
+import status from "http-status";
 // Controller for getting all orders
 const getAllOrders = async (req, res) => {
   const query = req.query.new;
@@ -9,9 +9,16 @@ const getAllOrders = async (req, res) => {
       ? await Order.find().sort({ _id: -1 }).limit(4)
       : await Order.find().sort({ _id: -1 });
 
-    return res.status(200).json(orders);
+    return res.status(status.OK).json({
+      message: "Orders retrieved successfully",
+      total: orders.length,
+      orders,
+    });
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(status.INTERNAL_SERVER_ERROR).json({
+      message: "Internal Server Error",
+      error,
+    });
   }
 };
 
@@ -25,33 +32,7 @@ const getAllOrderAccordingToDate = async (req, res) => {
   }
 };
 
-const countOrder = async (req, res) => {
-  const previousMonth = moment()
-    .month(moment().month() - 1)
-    .set("date", 1)
-    .format("YYYY-MM-DD HH:mm;ss");
-  try {
-    const orders = await Order.aggregate([
-      {
-        $match: { createdAt: { $gte: new Date(previousMonth) } },
-      },
-      {
-        $project: {
-          month: { $month: "$createdAt" },
-        },
-      },
-      {
-        $group: {
-          _id: "$month",
-          total: { $sum: 1 },
-        },
-      },
-    ]);
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
+
 const countTotalOrderIncome = async (req, res) => {
   const previousMonth = moment()
     .month(moment().month() - 1)
@@ -152,12 +133,61 @@ const deleteOrder = async (req, res) => {
   }
 };
 
-module.exports = {
+// Add this new controller method to orderController.js
+const getOrderStats = async (req, res) => {
+  try {
+    // Get current month and previous month
+    const currentMonth = moment().month();
+    const previousMonth = moment().month(moment().month() - 1);
+    
+    // Get total orders count
+    const totalOrders = await Order.countDocuments();
+    
+    // Get monthly comparison
+    const monthlyStats = await Order.aggregate([
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+          totalRevenue: { $sum: "$total" }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    
+    // Get current and previous month stats
+    const currentMonthStats = monthlyStats.find(stat => stat._id === currentMonth + 1);
+    const prevMonthStats = monthlyStats.find(stat => stat._id === previousMonth.month() + 1);
+    
+    // Calculate percentages
+    const orderPercentage = prevMonthStats 
+      ? ((currentMonthStats?.count - prevMonthStats.count) / prevMonthStats.count * 100).toFixed(2)
+      : 0;
+      
+    const revenuePercentage = prevMonthStats 
+      ? ((currentMonthStats?.totalRevenue - prevMonthStats.totalRevenue) / prevMonthStats.totalRevenue * 100).toFixed(2)
+      : 0;
+
+    res.status(200).json({
+      totalOrders,
+      monthlyStats,
+      currentMonthStats,
+      prevMonthStats,
+      orderPercentage,
+      revenuePercentage
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+export const orderController = {
+  getAllOrders,
   updateStatus,
   singleOrder,
-  getAllOrders,
   deleteOrder,
-  countOrder,
+  getOrderStats,
   countTotalOrderIncome,
   countTotalOrderWeakSale,
   getAllOrderAccordingToDate,

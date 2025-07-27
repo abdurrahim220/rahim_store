@@ -1,66 +1,87 @@
-const User = require("../models/User"); // Adjust the path accordingly
+import moment from "moment";
+import User from "../models/User.js";
+import status from "http-status";
+import { generateToken } from "../utils/generateToken.js";
+import cloudinary from "../utils/cloudinary.js";
 
-var moment = require("moment");
-
-// Controller for user registration
-const registerUser = async (req, res) => {
+export const registerUser = async (req, res, next) => {
   try {
-    const { name, email } = req.body;
-
-    // Check if the user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ message: "User already exists" });
+    if (!req.files || !req.files.image || Array.isArray(req.files.image)) {
+      return res.status(status.BAD_REQUEST).json({
+        error: "Single image file is required",
+      });
     }
-
-    // Create a new user
-    const newUser = new User({ name, email });
-    await newUser.save();
-
-    res.status(201).json({ message: "User registered successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-// Controller for user login
-const loginUser = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    // Check if the user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Generate a JWT token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      process.env.ACCESS_TOKEN_SECRET,
+    const uploadProductImage = await cloudinary.uploader.upload(
+      req.files.image.tempFilePath,
       {
-        expiresIn: "1h", // Token expires in 1 hour
+        folder: "users",
       }
     );
+    const user = await User.create({
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+      image: uploadProductImage.secure_url,
+      gender: req.body.gender,
+      cloudinary_id: uploadProductImage.public_id,
+    });
+    // Generate new token
+    const token = generateToken(user);
 
-    res.status(200).json({ token });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    // Clear old cookie and set new one
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      path: "/",
+    });
+    res.cookie("jwt", token, {
+      expires: new Date(
+        Date.now() +
+          (process.env.JWT_COOKIE_EXPIRES || 30) * 24 * 60 * 60 * 1000
+      ),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      path: "/",
+    });
+    user.password = undefined;
+    res.status(status.CREATED).json({
+      status: status.CREATED,
+      message: "User registered successfully",
+      token,
+      data: {
+        user,
+      },
+    });
+  } catch (err) {
+    next(err);
   }
 };
 
-// Controller for getting user profile with JWT verification
+const getAllUser = async (req, res) => {
+  try {
+    const users = await User.find();
+    res.status(status.OK).json(users);
+  } catch (error) {
+    res
+      .status(status.INTERNAL_SERVER_ERROR)
+      .json({ error: "Internal Server Error" });
+  }
+};
+
 const getUserProfile = async (req, res) => {
   try {
-    // Retrieve all allUsers from the database
-    const allUsers = await User.find();
-
-    return res.status(200).json(allUsers);
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(status.NOT_FOUND).json({ message: "User not found" });
+    }
+    res.status(status.OK).json({ user });
   } catch (error) {
-    // console.error("Error getting allUsers:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error(error);
+    res
+      .status(status.INTERNAL_SERVER_ERROR)
+      .json({ message: "Internal Server Error" });
   }
 };
 
@@ -86,28 +107,85 @@ const countUser = async (req, res) => {
         },
       },
     ]);
-    res.status(200).json(users);
+    res.status(status.OK).json(users);
   } catch (error) {
-    res.status(500).json({ error: "Internal Server Error" });
+    res
+      .status(status.INTERNAL_SERVER_ERROR)
+      .json({ error: "Internal Server Error" });
   }
 };
-
 const deleteUser = async (req, res) => {
   try {
+    // console.log(req.user.role);
+    // Check if requester is admin
+    if (req.user.role !== "admin") {
+      return res
+        .status(status.FORBIDDEN)
+        .json({ error: "Only admins can delete users" });
+    }
+
     const deleteUser = await User.findByIdAndDelete(req.params.id);
     if (!deleteUser) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(status.NOT_FOUND).json({ error: "User not found" });
     }
-    res.status(200).json(deleteUser);
+    if (deleteUser.cloudinary_id) {
+      await cloudinary.uploader.destroy(deleteUser.cloudinary_id);
+    }
+    res.status(status.OK).json({
+      status: status.OK,
+      message: "User deleted successfully",
+    });
   } catch (error) {
-    res.status(500).json(error);
+    res
+      .status(status.INTERNAL_SERVER_ERROR)
+      .json({ error: "Internal Server Error" });
   }
 };
 
-module.exports = {
+const updateUserRole = async (req, res) => {
+  try {
+    // console.log(req.user.role)
+    // Check if requester is admin
+    if (req.user.role !== "admin") {
+      return res
+        .status(status.FORBIDDEN)
+        .json({ error: "Only admins can update user roles" });
+    }
+    const updateUser = await User.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!updateUser) {
+      return res.status(status.NOT_FOUND).json({ error: "User not found" });
+    }
+    res.status(status.OK).json(updateUser);
+  } catch (error) {
+    res
+      .status(status.INTERNAL_SERVER_ERROR)
+      .json({ error: "Internal Server Error" });
+  }
+};
+
+const getSingleUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(status.NOT_FOUND).json({ error: "User not found" });
+    }
+    res.status(status.OK).json(user);
+  } catch (error) {
+    res
+      .status(status.INTERNAL_SERVER_ERROR)
+      .json({ error: "Internal Server Error" });
+  }
+};
+
+
+export const userController = {
   registerUser,
-  loginUser,
+  getAllUser,
   getUserProfile,
   countUser,
-  deleteUser
+  deleteUser,
+  updateUserRole,
+  getSingleUser,
 };

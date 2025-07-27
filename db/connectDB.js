@@ -1,18 +1,47 @@
-const mongoose = require("mongoose");
+// db/connectDB.js
+import mongoose from 'mongoose';
+import config from '../config/config.js';
+import superAdmin from './superAdmin.js';
 
-const CONNECTION_STRING = `mongodb+srv://rahim:aU9eUMj4PRoTRn84@cluster0.hncbqqn.mongodb.net/RahimStore?retryWrites=true&w=majority`;
 
-const connectDB = async () => {
-  try {
-    const connect = await mongoose.connect(CONNECTION_STRING);
-    console.log(
-      "Database connected: ",
-      connect.connection.host,
-      connect.connection.name
-    );
-  } catch (error) {
-    console.log(error);
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    const opts = {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 10000,
+      maxPoolSize: 5, 
+      bufferCommands: false, 
+    };
+
+    cached.promise = mongoose.connect(config.connectionString, opts)
+      .then(async mongoose => {
+        console.log('MongoDB connected');
+        try {
+          await superAdmin();
+          console.log('Super admin created');
+        } catch (error) {
+          console.error('Error creating super admin:', error);
+        }
+        return mongoose;
+      });
   }
-};
 
-module.exports = connectDB;
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
+
+  return cached.conn;
+}
+
+export default connectDB;
